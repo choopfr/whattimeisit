@@ -12,18 +12,12 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-        /* Custom scrollbar for a more modern look */
-        select::-webkit-scrollbar {
-            width: 8px;
-        }
-        select::-webkit-scrollbar-track {
-            background: #2d3748;
-        }
-        select::-webkit-scrollbar-thumb {
-            background-color: #4a5568;
-            border-radius: 20px;
-            border: 2px solid #2d3748;
-        }
+        /* Custom scrollbar */
+        select::-webkit-scrollbar { width: 8px; }
+        select::-webkit-scrollbar-track { background: #2d3748; }
+        select::-webkit-scrollbar-thumb { background-color: #4a5568; border-radius: 20px; border: 2px solid #2d3748; }
+        /* Simple transition for the toggle switch */
+        .toggle-circle { transition: transform 0.2s ease-in-out; }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen antialiased">
@@ -35,7 +29,7 @@
             <h1 id="time-display" class="text-6xl md:text-8xl font-black tracking-tighter text-cyan-400" style="font-variant-numeric: tabular-nums;">
                 00:00:00
             </h1>
-            <p id="ampm-display" class="text-2xl md:text-4xl font-bold text-gray-400"></p>
+            <p id="ampm-display" class="text-2xl md:text-4xl font-bold text-gray-400 h-10"></p>
         </div>
 
         <!-- Date and Timezone Info -->
@@ -44,27 +38,29 @@
             <p id="timezone-offset" class="text-sm md:text-base text-gray-500"></p>
         </div>
 
-        <!-- Controls: Timezone Selector and Location Button -->
-        <div class="flex flex-col sm:flex-row gap-4 items-center">
-            <div class="relative w-full">
-                <select id="timezone-selector" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500 text-lg text-white cursor-pointer">
-                    <!-- Options will be populated by JavaScript -->
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                    <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+        <!-- Controls -->
+        <div class="flex flex-col gap-4">
+            <div class="flex flex-col sm:flex-row gap-4 items-center">
+                <div class="relative w-full">
+                    <select id="timezone-selector" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500 text-lg text-white cursor-pointer"></select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
                 </div>
+                <button id="location-button" title="Use My Location" class="flex-shrink-0 bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </button>
             </div>
-            <button id="location-button" title="Use My Location" class="flex-shrink-0 bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-            </button>
+            <div class="flex items-center justify-center gap-4 pt-2">
+                <span class="text-gray-400">12-Hour</span>
+                <button id="format-toggle" role="switch" aria-checked="false" class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500">
+                    <span class="inline-block w-4 h-4 transform bg-white rounded-full toggle-circle translate-x-1"></span>
+                </button>
+                <span class="text-gray-400">24-Hour</span>
+            </div>
         </div>
         
-        <!-- Notification Area -->
         <div id="notification" class="text-center text-sm text-gray-400 mt-4 h-5 transition-opacity duration-300 opacity-0"></div>
-
     </div>
 
     <script>
@@ -76,13 +72,27 @@
             const timezoneSelector = document.getElementById('timezone-selector');
             const infoDisplay = document.getElementById('info-display');
             const locationButton = document.getElementById('location-button');
+            const formatToggle = document.getElementById('format-toggle');
             const notification = document.getElementById('notification');
 
             let clockInterval;
+            let is24HourFormat = localStorage.getItem('is24HourFormat') === 'true';
 
             /**
-             * Populates the timezone selector dropdown with all IANA timezones.
+             * Updates the visual state of the 24-hour format toggle switch.
              */
+            function updateFormatToggleVisual() {
+                formatToggle.setAttribute('aria-checked', is24HourFormat);
+                const circle = formatToggle.querySelector('.toggle-circle');
+                if (is24HourFormat) {
+                    formatToggle.classList.replace('bg-gray-600', 'bg-cyan-500');
+                    circle.style.transform = 'translateX(21px)';
+                } else {
+                    formatToggle.classList.replace('bg-cyan-500', 'bg-gray-600');
+                    circle.style.transform = 'translateX(4px)';
+                }
+            }
+
             function populateTimezones() {
                 const timezones = Intl.supportedValuesOf('timeZone');
                 const groupedTimezones = timezones.reduce((acc, tz) => {
@@ -93,13 +103,9 @@
                     return acc;
                 }, {});
 
-                // Sort regions alphabetically
-                const sortedRegions = Object.keys(groupedTimezones).sort();
-
-                sortedRegions.forEach(region => {
+                Object.keys(groupedTimezones).sort().forEach(region => {
                     const optgroup = document.createElement('optgroup');
                     optgroup.label = region;
-                    // Sort timezones within the region
                     groupedTimezones[region].sort().forEach(tz => {
                         const option = document.createElement('option');
                         option.value = tz;
@@ -109,13 +115,6 @@
                     timezoneSelector.appendChild(optgroup);
                 });
 
-                setInitialTimezone();
-            }
-            
-            /**
-             * Sets the initial timezone based on the user's browser settings.
-             */
-            function setInitialTimezone() {
                 try {
                     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
                     if ([...timezoneSelector.options].some(o => o.value === userTimezone)) {
@@ -123,15 +122,10 @@
                     }
                 } catch (e) {
                     console.error("Could not determine user timezone:", e);
-                    timezoneSelector.value = 'UTC'; // Fallback
+                    timezoneSelector.value = 'UTC';
                 }
             }
             
-            /**
-             * Displays a temporary notification message to the user.
-             * @param {string} message - The message to display.
-             * @param {boolean} isError - If true, styles the message as an error.
-             */
             function showNotification(message, isError = false) {
                 notification.textContent = message;
                 notification.style.color = isError ? '#f87171' : '#9ca3af';
@@ -139,9 +133,6 @@
                 setTimeout(() => notification.classList.add('opacity-0'), 3000);
             }
 
-            /**
-             * Starts the clock, updating the time every second for the selected timezone.
-             */
             function startClock() {
                 if (clockInterval) clearInterval(clockInterval);
 
@@ -153,10 +144,14 @@
                 const update = () => {
                     const now = new Date();
                     
-                    const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: selectedTimezone });
+                    const timeFormatter = new Intl.DateTimeFormat('en-US', {
+                        hour: '2-digit', minute: '2-digit', second: '2-digit',
+                        hour12: !is24HourFormat, timeZone: selectedTimezone
+                    });
+                    
                     const parts = timeFormatter.formatToParts(now).reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
                     timeDisplay.textContent = `${parts.hour}:${parts.minute}:${parts.second}`;
-                    ampmDisplay.textContent = parts.dayPeriod.toUpperCase();
+                    ampmDisplay.textContent = is24HourFormat ? '' : (parts.dayPeriod || '').toUpperCase();
 
                     const dateFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: selectedTimezone });
                     dateDisplay.textContent = dateFormatter.format(now);
@@ -166,47 +161,44 @@
                     timezoneOffsetDisplay.textContent = `${selectedTimezone.replace(/_/g, ' ')} (${offsetString})`;
                 };
                 
-                update(); // Initial call to prevent 1-second delay
+                update();
                 clockInterval = setInterval(update, 1000);
             }
 
-            /**
-             * Handles the click on the location button.
-             */
             function handleLocationClick() {
                 if (!navigator.geolocation) {
                     showNotification("Geolocation is not supported by your browser.", true);
                     return;
                 }
-                
                 showNotification("Detecting your location...");
-
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        // We don't need the position data itself, as the browser's
-                        // Intl object already knows the most accurate local timezone.
+                    () => {
                         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
                         timezoneSelector.value = userTimezone;
-                        // Trigger the change event to update the clock
                         timezoneSelector.dispatchEvent(new Event('change'));
                         showNotification(`Timezone set to ${userTimezone.replace(/_/g, ' ')}.`);
                     },
                     (error) => {
-                        let message = "Could not get your location.";
-                        if (error.code === error.PERMISSION_DENIED) {
-                            message = "Location access denied.";
-                        }
-                        showNotification(message, true);
+                        showNotification(error.code === error.PERMISSION_DENIED ? "Location access denied." : "Could not get your location.", true);
                     }
                 );
+            }
+            
+            function handleFormatToggle() {
+                is24HourFormat = !is24HourFormat;
+                localStorage.setItem('is24HourFormat', is24HourFormat);
+                updateFormatToggleVisual();
+                startClock(); // Restart clock to apply new format
             }
 
             // --- Event Listeners ---
             timezoneSelector.addEventListener('change', startClock);
             locationButton.addEventListener('click', handleLocationClick);
+            formatToggle.addEventListener('click', handleFormatToggle);
 
             // --- Initialization ---
             populateTimezones();
+            updateFormatToggleVisual();
             startClock();
         });
     </script>
