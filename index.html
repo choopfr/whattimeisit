@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Clock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for a more modern look */
+        select::-webkit-scrollbar {
+            width: 8px;
+        }
+        select::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        select::-webkit-scrollbar-thumb {
+            background-color: #4a5568;
+            border-radius: 20px;
+            border: 2px solid #2d3748;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen antialiased">
+
+    <div class="w-full max-w-2xl mx-auto p-6 md:p-8 bg-gray-800 rounded-2xl shadow-2xl border border-gray-700">
+        
+        <!-- Time Display -->
+        <div class="text-center mb-6">
+            <h1 id="time-display" class="text-6xl md:text-8xl font-black tracking-tighter text-cyan-400" style="font-variant-numeric: tabular-nums;">
+                00:00:00
+            </h1>
+            <p id="ampm-display" class="text-2xl md:text-4xl font-bold text-gray-400"></p>
+        </div>
+
+        <!-- Date and Timezone Info -->
+        <div id="info-display" class="text-center mb-8 h-16 flex flex-col justify-center items-center transition-opacity duration-300 opacity-0">
+            <p id="date-display" class="text-lg md:text-xl font-medium text-gray-300"></p>
+            <p id="timezone-offset" class="text-sm md:text-base text-gray-500"></p>
+        </div>
+
+        <!-- Controls: Timezone Selector and Location Button -->
+        <div class="flex flex-col sm:flex-row gap-4 items-center">
+            <div class="relative w-full">
+                <select id="timezone-selector" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500 text-lg text-white cursor-pointer">
+                    <!-- Options will be populated by JavaScript -->
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                    <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                </div>
+            </div>
+            <button id="location-button" title="Use My Location" class="flex-shrink-0 bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Notification Area -->
+        <div id="notification" class="text-center text-sm text-gray-400 mt-4 h-5 transition-opacity duration-300 opacity-0"></div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const timeDisplay = document.getElementById('time-display');
+            const ampmDisplay = document.getElementById('ampm-display');
+            const dateDisplay = document.getElementById('date-display');
+            const timezoneOffsetDisplay = document.getElementById('timezone-offset');
+            const timezoneSelector = document.getElementById('timezone-selector');
+            const infoDisplay = document.getElementById('info-display');
+            const locationButton = document.getElementById('location-button');
+            const notification = document.getElementById('notification');
+
+            let clockInterval;
+
+            /**
+             * Populates the timezone selector dropdown with all IANA timezones.
+             */
+            function populateTimezones() {
+                const timezones = Intl.supportedValuesOf('timeZone');
+                const groupedTimezones = timezones.reduce((acc, tz) => {
+                    const [region, ...cityParts] = tz.split('/');
+                    if (!cityParts.length || region === 'Etc') return acc;
+                    if (!acc[region]) acc[region] = [];
+                    acc[region].push(tz);
+                    return acc;
+                }, {});
+
+                // Sort regions alphabetically
+                const sortedRegions = Object.keys(groupedTimezones).sort();
+
+                sortedRegions.forEach(region => {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = region;
+                    // Sort timezones within the region
+                    groupedTimezones[region].sort().forEach(tz => {
+                        const option = document.createElement('option');
+                        option.value = tz;
+                        option.textContent = tz.replace(/_/g, ' ');
+                        optgroup.appendChild(option);
+                    });
+                    timezoneSelector.appendChild(optgroup);
+                });
+
+                setInitialTimezone();
+            }
+            
+            /**
+             * Sets the initial timezone based on the user's browser settings.
+             */
+            function setInitialTimezone() {
+                try {
+                    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    if ([...timezoneSelector.options].some(o => o.value === userTimezone)) {
+                        timezoneSelector.value = userTimezone;
+                    }
+                } catch (e) {
+                    console.error("Could not determine user timezone:", e);
+                    timezoneSelector.value = 'UTC'; // Fallback
+                }
+            }
+            
+            /**
+             * Displays a temporary notification message to the user.
+             * @param {string} message - The message to display.
+             * @param {boolean} isError - If true, styles the message as an error.
+             */
+            function showNotification(message, isError = false) {
+                notification.textContent = message;
+                notification.style.color = isError ? '#f87171' : '#9ca3af';
+                notification.classList.remove('opacity-0');
+                setTimeout(() => notification.classList.add('opacity-0'), 3000);
+            }
+
+            /**
+             * Starts the clock, updating the time every second for the selected timezone.
+             */
+            function startClock() {
+                if (clockInterval) clearInterval(clockInterval);
+
+                const selectedTimezone = timezoneSelector.value;
+                if (!selectedTimezone) return;
+
+                infoDisplay.classList.remove('opacity-0');
+
+                const update = () => {
+                    const now = new Date();
+                    
+                    const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: selectedTimezone });
+                    const parts = timeFormatter.formatToParts(now).reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
+                    timeDisplay.textContent = `${parts.hour}:${parts.minute}:${parts.second}`;
+                    ampmDisplay.textContent = parts.dayPeriod.toUpperCase();
+
+                    const dateFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: selectedTimezone });
+                    dateDisplay.textContent = dateFormatter.format(now);
+
+                    const offsetFormatter = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short', timeZone: selectedTimezone });
+                    const offsetString = offsetFormatter.format(now).split(' ').pop();
+                    timezoneOffsetDisplay.textContent = `${selectedTimezone.replace(/_/g, ' ')} (${offsetString})`;
+                };
+                
+                update(); // Initial call to prevent 1-second delay
+                clockInterval = setInterval(update, 1000);
+            }
+
+            /**
+             * Handles the click on the location button.
+             */
+            function handleLocationClick() {
+                if (!navigator.geolocation) {
+                    showNotification("Geolocation is not supported by your browser.", true);
+                    return;
+                }
+                
+                showNotification("Detecting your location...");
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        // We don't need the position data itself, as the browser's
+                        // Intl object already knows the most accurate local timezone.
+                        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                        timezoneSelector.value = userTimezone;
+                        // Trigger the change event to update the clock
+                        timezoneSelector.dispatchEvent(new Event('change'));
+                        showNotification(`Timezone set to ${userTimezone.replace(/_/g, ' ')}.`);
+                    },
+                    (error) => {
+                        let message = "Could not get your location.";
+                        if (error.code === error.PERMISSION_DENIED) {
+                            message = "Location access denied.";
+                        }
+                        showNotification(message, true);
+                    }
+                );
+            }
+
+            // --- Event Listeners ---
+            timezoneSelector.addEventListener('change', startClock);
+            locationButton.addEventListener('click', handleLocationClick);
+
+            // --- Initialization ---
+            populateTimezones();
+            startClock();
+        });
+    </script>
+</body>
+</html>
