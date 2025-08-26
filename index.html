@@ -5,201 +5,292 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>World Clock</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        :root {
+            --bg-color: #0c0a09; --card-bg-color: #1c1917; --text-color: #f9fafb;
+            --subtext-color: #a8a29e; --border-color: #292524;
+            --control-bg-color: #292524; --control-border-color: #44403c;
+            --accent-color: #fafafa; /* Default White */
         }
-        /* Custom scrollbar */
-        select::-webkit-scrollbar { width: 8px; }
-        select::-webkit-scrollbar-track { background: #2d3748; }
-        select::-webkit-scrollbar-thumb { background-color: #4a5568; border-radius: 20px; border: 2px solid #2d3748; }
-        /* Simple transition for the toggle switch */
+        [data-colorway='red'] { --accent-color: #f87171; }
+        [data-colorway='blue'] { --accent-color: #60a5fa; }
+        [data-colorway='green'] { --accent-color: #4ade80; }
+        [data-colorway='orange'] { --accent-color: #fb923c; }
+
+        [data-theme='light'] {
+            --bg-color: #f3f4f6; --card-bg-color: #ffffff; --text-color: #111827;
+            --subtext-color: #4b5563; --border-color: #d1d5db;
+            --control-bg-color: #e5e7eb; --control-border-color: #d1d5db;
+        }
+        [data-theme='light'][data-colorway='white'] { --accent-color: #111827; }
+        [data-theme='light'][data-colorway='red'] { --accent-color: #ef4444; }
+        [data-theme='light'][data-colorway='blue'] { --accent-color: #3b82f6; }
+        [data-theme='light'][data-colorway='green'] { --accent-color: #22c55e; }
+        [data-theme='light'][data-colorway='orange'] { --accent-color: #f97316; }
+
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }
+        .card { background-color: var(--card-bg-color); border-color: var(--border-color); transition: background-color 0.3s, border-color 0.3s; }
+        .accent-text { color: var(--accent-color); transition: color 0.3s; }
+        .subtext { color: var(--subtext-color); }
+        .control { background-color: var(--control-bg-color); border-color: var(--control-border-color); transition: background-color 0.3s, border-color 0.3s; }
         .toggle-circle { transition: transform 0.2s ease-in-out; }
+        select::-webkit-scrollbar { width: 8px; }
+        select::-webkit-scrollbar-track { background: var(--control-bg-color); }
+        select::-webkit-scrollbar-thumb { background-color: var(--subtext-color); border-radius: 20px; border: 2px solid var(--control-bg-color); }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .secondary-clock { animation: fadeIn 0.5s ease-out forwards; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden; transition: all 0.3s ease; z-index: 100;
+        }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-content { transform: scale(0.8); transition: transform 0.3s ease; }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen antialiased">
+<body class="flex items-center justify-center min-h-screen antialiased p-4">
 
-    <div class="w-full max-w-2xl mx-auto p-6 md:p-8 bg-gray-800 rounded-2xl shadow-2xl border border-gray-700">
-        
-        <!-- Time Display -->
+    <div class="w-full max-w-3xl mx-auto p-6 md:p-8 card rounded-2xl shadow-2xl border">
         <div class="text-center mb-6">
-            <h1 id="time-display" class="text-6xl md:text-8xl font-black tracking-tighter text-cyan-400" style="font-variant-numeric: tabular-nums;">
+            <h1 id="time-display" class="text-6xl md:text-8xl font-black tracking-tighter accent-text" style="font-variant-numeric: tabular-nums;">
                 00:00:00
             </h1>
-            <p id="ampm-display" class="text-2xl md:text-4xl font-bold text-gray-400 h-10"></p>
+            <p id="ampm-display" class="text-2xl md:text-4xl font-bold subtext h-10"></p>
         </div>
-
-        <!-- Date and Timezone Info -->
         <div id="info-display" class="text-center mb-8 h-16 flex flex-col justify-center items-center transition-opacity duration-300 opacity-0">
-            <p id="date-display" class="text-lg md:text-xl font-medium text-gray-300"></p>
-            <p id="timezone-offset" class="text-sm md:text-base text-gray-500"></p>
+            <p id="date-display" class="text-lg md:text-xl font-medium"></p>
+            <p id="timezone-offset" class="text-sm md:text-base subtext"></p>
         </div>
-
-        <!-- Controls -->
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-4 mb-8">
             <div class="flex flex-col sm:flex-row gap-4 items-center">
                 <div class="relative w-full">
-                    <select id="timezone-selector" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500 text-lg text-white cursor-pointer"></select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                    </div>
+                    <input type="text" id="timezone-search" placeholder="Search for a timezone..." class="w-full px-4 py-3 control border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-lg mb-2">
+                    <select id="timezone-selector" class="w-full px-4 py-3 control border rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500 text-lg cursor-pointer" size="5"></select>
                 </div>
-                <button id="location-button" title="Use My Location" class="flex-shrink-0 bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </button>
+                <button id="location-button" title="Use My Location" class="flex-shrink-0 bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button>
             </div>
-            <div class="flex items-center justify-center gap-4 pt-2">
-                <span class="text-gray-400">12-Hour</span>
-                <button id="format-toggle" role="switch" aria-checked="false" class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500">
-                    <span class="inline-block w-4 h-4 transform bg-white rounded-full toggle-circle translate-x-1"></span>
-                </button>
-                <span class="text-gray-400">24-Hour</span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center pt-2">
+                <div class="flex items-center justify-center gap-2">
+                    <label for="colorway-selector" class="subtext text-sm">Colorway</label>
+                    <select id="colorway-selector" class="p-2 control border rounded-lg text-sm"><option value="white">White</option><option value="red">Red</option><option value="blue">Blue</option><option value="green">Green</option><option value="orange">Orange</option></select>
+                    <button id="color-picker-btn" class="p-2 rounded-full hover:bg-gray-500/20 transition-colors hidden lg:block"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm12 14H4V4h12v12zM6 6a1 1 0 011-1h1a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 000 2h1a1 1 0 100-2H7zM6 13a1 1 0 011-1h1a1 1 0 110 2H7a1 1 0 01-1-1zm3-6a1 1 0 000 2h1a1 1 0 100-2h-1zm1 3a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1zm3-4a1 1 0 100 2h1a1 1 0 100-2h-1z" clip-rule="evenodd" /></svg></button>
+                </div>
+                <div class="flex items-center justify-center gap-2"><span class="subtext">12-H</span><button id="format-toggle" role="switch" class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500"><span class="inline-block w-4 h-4 transform bg-white rounded-full toggle-circle translate-x-1"></span></button><span class="subtext">24-H</span></div>
+                <div class="flex items-center justify-center"><button id="theme-toggle" title="Toggle Theme" class="p-2 rounded-full hover:bg-gray-500/20 transition-colors"></button></div>
             </div>
         </div>
-        
-        <div id="notification" class="text-center text-sm text-gray-400 mt-4 h-5 transition-opacity duration-300 opacity-0"></div>
+        <div id="secondary-clocks" class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center"></div>
+        <div id="notification" class="text-center text-sm subtext mt-6 h-5 transition-opacity duration-300 opacity-0"></div>
+    </div>
+
+    <!-- Color Picker Modal -->
+    <div id="color-picker-modal" class="modal-overlay">
+        <div class="modal-content card p-6 rounded-lg w-full max-w-xs">
+            <h3 class="text-lg font-bold mb-4">Custom Color</h3>
+            <div id="color-picker-container" class="flex justify-center"></div>
+            <button id="close-color-modal" class="mt-6 w-full p-2 bg-cyan-500 text-white rounded-lg font-bold">Done</button>
+        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const timeDisplay = document.getElementById('time-display');
-            const ampmDisplay = document.getElementById('ampm-display');
-            const dateDisplay = document.getElementById('date-display');
-            const timezoneOffsetDisplay = document.getElementById('timezone-offset');
-            const timezoneSelector = document.getElementById('timezone-selector');
-            const infoDisplay = document.getElementById('info-display');
-            const locationButton = document.getElementById('location-button');
-            const formatToggle = document.getElementById('format-toggle');
-            const notification = document.getElementById('notification');
+            const elements = {
+                body: document.body, time: document.getElementById('time-display'), ampm: document.getElementById('ampm-display'),
+                date: document.getElementById('date-display'), offset: document.getElementById('timezone-offset'),
+                selector: document.getElementById('timezone-selector'), info: document.getElementById('info-display'),
+                locationBtn: document.getElementById('location-button'), formatToggle: document.getElementById('format-toggle'),
+                themeToggle: document.getElementById('theme-toggle'), notification: document.getElementById('notification'),
+                secondaryClocks: document.getElementById('secondary-clocks'), colorwaySelector: document.getElementById('colorway-selector'),
+                colorPickerBtn: document.getElementById('color-picker-btn'), colorPickerModal: document.getElementById('color-picker-modal'),
+                closeColorModalBtn: document.getElementById('close-color-modal'), timezoneSearch: document.getElementById('timezone-search'),
+                colorPickerContainer: document.getElementById('color-picker-container')
+            };
 
-            let clockInterval;
-            let is24HourFormat = localStorage.getItem('is24HourFormat') === 'true';
-
-            /**
-             * Updates the visual state of the 24-hour format toggle switch.
-             */
-            function updateFormatToggleVisual() {
-                formatToggle.setAttribute('aria-checked', is24HourFormat);
-                const circle = formatToggle.querySelector('.toggle-circle');
-                if (is24HourFormat) {
-                    formatToggle.classList.replace('bg-gray-600', 'bg-cyan-500');
-                    circle.style.transform = 'translateX(21px)';
-                } else {
-                    formatToggle.classList.replace('bg-cyan-500', 'bg-gray-600');
-                    circle.style.transform = 'translateX(4px)';
-                }
-            }
-
-            function populateTimezones() {
-                const timezones = Intl.supportedValuesOf('timeZone');
-                const groupedTimezones = timezones.reduce((acc, tz) => {
-                    const [region, ...cityParts] = tz.split('/');
-                    if (!cityParts.length || region === 'Etc') return acc;
-                    if (!acc[region]) acc[region] = [];
-                    acc[region].push(tz);
-                    return acc;
-                }, {});
-
-                Object.keys(groupedTimezones).sort().forEach(region => {
-                    const optgroup = document.createElement('optgroup');
-                    optgroup.label = region;
-                    groupedTimezones[region].sort().forEach(tz => {
-                        const option = document.createElement('option');
-                        option.value = tz;
-                        option.textContent = tz.replace(/_/g, ' ');
-                        optgroup.appendChild(option);
-                    });
-                    timezoneSelector.appendChild(optgroup);
-                });
-
-                try {
-                    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                    if ([...timezoneSelector.options].some(o => o.value === userTimezone)) {
-                        timezoneSelector.value = userTimezone;
-                    }
-                } catch (e) {
-                    console.error("Could not determine user timezone:", e);
-                    timezoneSelector.value = 'UTC';
-                }
-            }
+            const icons = {
+                sun: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`,
+                moon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`
+            };
             
+            const secondaryTimezones = ['America/New_York', 'Europe/London', 'Asia/Tokyo', 'Australia/Sydney'];
+            let clockInterval;
+            let colorPicker;
+            let state = {
+                is24Hour: localStorage.getItem('is24HourFormat') === 'true',
+                theme: localStorage.getItem('theme') || 'dark',
+                colorway: localStorage.getItem('colorway') || 'white',
+                customColor: localStorage.getItem('customColor') || null
+            };
+
+            function updateVisuals() {
+                elements.formatToggle.setAttribute('aria-checked', state.is24Hour);
+                const circle = elements.formatToggle.querySelector('.toggle-circle');
+                elements.formatToggle.classList.toggle('bg-cyan-500', state.is24Hour);
+                elements.formatToggle.classList.toggle('bg-gray-600', !state.is24Hour);
+                circle.style.transform = state.is24Hour ? 'translateX(21px)' : 'translateX(4px)';
+                
+                elements.body.dataset.theme = state.theme;
+                elements.themeToggle.innerHTML = state.theme === 'dark' ? icons.sun : icons.moon;
+
+                if (state.customColor) {
+                    elements.body.style.setProperty('--accent-color', state.customColor);
+                    if (!elements.colorwaySelector.querySelector('option[value="custom"]')) {
+                        const customOption = new Option('Custom', 'custom');
+                        elements.colorwaySelector.add(customOption);
+                    }
+                    elements.colorwaySelector.value = 'custom';
+                } else {
+                    elements.body.style.removeProperty('--accent-color');
+                    elements.body.dataset.colorway = state.colorway;
+                    elements.colorwaySelector.value = state.colorway;
+                }
+            }
+
             function showNotification(message, isError = false) {
-                notification.textContent = message;
-                notification.style.color = isError ? '#f87171' : '#9ca3af';
-                notification.classList.remove('opacity-0');
-                setTimeout(() => notification.classList.add('opacity-0'), 3000);
+                elements.notification.textContent = message;
+                elements.notification.style.color = isError ? '#f87171' : 'var(--subtext-color)';
+                elements.notification.classList.remove('opacity-0');
+                setTimeout(() => elements.notification.classList.add('opacity-0'), 3000);
             }
 
             function startClock() {
                 if (clockInterval) clearInterval(clockInterval);
-
-                const selectedTimezone = timezoneSelector.value;
-                if (!selectedTimezone) return;
-
-                infoDisplay.classList.remove('opacity-0');
-
+                elements.info.classList.remove('opacity-0');
                 const update = () => {
                     const now = new Date();
-                    
-                    const timeFormatter = new Intl.DateTimeFormat('en-US', {
-                        hour: '2-digit', minute: '2-digit', second: '2-digit',
-                        hour12: !is24HourFormat, timeZone: selectedTimezone
+                    updateTimeDisplay(elements.selector.value, now);
+                    secondaryTimezones.forEach(tz => {
+                        const city = tz.split('/').pop().replace(/_/g, ' ');
+                        const timeEl = document.getElementById(`secondary-time-${city}`);
+                        const diffEl = document.getElementById(`secondary-diff-${city}`);
+                        if(timeEl) updateSecondaryTimeDisplay(timeEl, tz, now);
+                        if(diffEl) diffEl.textContent = getOffsetDiff(elements.selector.value, tz, now);
                     });
-                    
-                    const parts = timeFormatter.formatToParts(now).reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
-                    timeDisplay.textContent = `${parts.hour}:${parts.minute}:${parts.second}`;
-                    ampmDisplay.textContent = is24HourFormat ? '' : (parts.dayPeriod || '').toUpperCase();
-
-                    const dateFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: selectedTimezone });
-                    dateDisplay.textContent = dateFormatter.format(now);
-
-                    const offsetFormatter = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short', timeZone: selectedTimezone });
-                    const offsetString = offsetFormatter.format(now).split(' ').pop();
-                    timezoneOffsetDisplay.textContent = `${selectedTimezone.replace(/_/g, ' ')} (${offsetString})`;
                 };
-                
                 update();
                 clockInterval = setInterval(update, 1000);
             }
+            
+            function getOffsetInHours(timeZone, date) {
+                const formatter = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' });
+                const parts = formatter.formatToParts(date);
+                const offsetPart = parts.find(part => part.type === 'timeZoneName');
+                const offsetString = offsetPart ? offsetPart.value : 'GMT+0';
+                const [_, sign, hours, minutes] = offsetString.match(/([+-])(\d{2}):(\d{2})/) || ['','+', '00', '00'];
+                return parseInt(sign + hours) + parseInt(minutes) / 60;
+            }
 
-            function handleLocationClick() {
-                if (!navigator.geolocation) {
-                    showNotification("Geolocation is not supported by your browser.", true);
-                    return;
-                }
-                showNotification("Detecting your location...");
-                navigator.geolocation.getCurrentPosition(
-                    () => {
-                        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                        timezoneSelector.value = userTimezone;
-                        timezoneSelector.dispatchEvent(new Event('change'));
-                        showNotification(`Timezone set to ${userTimezone.replace(/_/g, ' ')}.`);
-                    },
-                    (error) => {
-                        showNotification(error.code === error.PERMISSION_DENIED ? "Location access denied." : "Could not get your location.", true);
-                    }
-                );
+            function getOffsetDiff(baseTz, targetTz, date) {
+                if (!baseTz || !targetTz) return '';
+                const baseOffset = getOffsetInHours(baseTz, date);
+                const targetOffset = getOffsetInHours(targetTz, date);
+                const diff = targetOffset - baseOffset;
+                if (diff === 0) return 'Same';
+                return `${diff > 0 ? '+' : ''}${diff.toFixed(1).replace('.0','')}h`;
+            }
+
+            function updateTimeDisplay(timezone, date) {
+                const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !state.is24Hour, timeZone: timezone });
+                const parts = timeFormatter.formatToParts(date).reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
+                
+                elements.time.textContent = `${parts.hour}:${parts.minute}:${parts.second}`;
+
+                elements.ampm.textContent = state.is24Hour ? '' : (parts.dayPeriod || '').toUpperCase();
+                elements.date.textContent = new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: timezone }).format(date);
+                elements.offset.textContent = `${timezone.replace(/_/g, ' ')} (${new Intl.DateTimeFormat('en-US', { timeZoneName: 'short', timeZone: timezone }).format(date).split(' ').pop()})`;
+            }
+
+            function updateSecondaryTimeDisplay(timeEl, timezone, date) {
+                 const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: !state.is24Hour, timeZone: timezone });
+                 timeEl.textContent = timeFormatter.format(date);
             }
             
-            function handleFormatToggle() {
-                is24HourFormat = !is24HourFormat;
-                localStorage.setItem('is24HourFormat', is24HourFormat);
-                updateFormatToggleVisual();
-                startClock(); // Restart clock to apply new format
+            function init() {
+                const timezones = Intl.supportedValuesOf('timeZone');
+                const grouped = timezones.reduce((acc, tz) => {
+                    const [region] = tz.split('/');
+                    if (region && !['Etc', 'SystemV', 'PST8PDT'].includes(region)) {
+                        if (!acc[region]) acc[region] = []; acc[region].push(tz);
+                    }
+                    return acc;
+                }, {});
+                Object.keys(grouped).sort().forEach(region => {
+                    const optgroup = document.createElement('optgroup'); optgroup.label = region;
+                    grouped[region].sort().forEach(tz => {
+                        const option = new Option(`- ${tz.replace(/_/g, ' ')}`, tz); 
+                        optgroup.appendChild(option);
+                    });
+                    elements.selector.appendChild(optgroup);
+                });
+                try {
+                    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    if ([...elements.selector.options].some(o => o.value === userTz)) elements.selector.value = userTz;
+                } catch (e) { elements.selector.value = 'UTC'; }
+
+                elements.secondaryClocks.innerHTML = '';
+                secondaryTimezones.forEach((tz, index) => {
+                    const city = tz.split('/').pop().replace(/_/g, ' ');
+                    const clockEl = document.createElement('div');
+                    clockEl.className = 'p-2 rounded-lg secondary-clock'; clockEl.style.opacity = 0; clockEl.style.animationDelay = `${index * 100}ms`;
+                    clockEl.innerHTML = `<div id="secondary-time-${city}" class="text-2xl font-bold" style="font-variant-numeric: tabular-nums;"></div><div class="text-sm subtext">${city}</div><div id="secondary-diff-${city}" class="text-xs subtext"></div>`;
+                    elements.secondaryClocks.appendChild(clockEl);
+                });
+
+                updateVisuals();
+                startClock();
+                
+                colorPicker = new iro.ColorPicker(elements.colorPickerContainer, { width: 200, color: state.customColor || "#fafafa", borderWidth: 2, borderColor: "#fff" });
+                colorPicker.on('color:change', (color) => {
+                    state.customColor = color.hexString;
+                    localStorage.setItem('customColor', state.customColor);
+                    updateVisuals();
+                });
+
+                elements.selector.addEventListener('change', startClock);
+                elements.locationBtn.addEventListener('click', () => {
+                    if (!navigator.geolocation) return showNotification("Geolocation is not supported.", true);
+                    showNotification("Detecting your location...");
+                    navigator.geolocation.getCurrentPosition(
+                        () => {
+                            const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                            elements.selector.value = userTz; elements.selector.dispatchEvent(new Event('change'));
+                            showNotification(`Timezone set to ${userTz.replace(/_/g, ' ')}.`);
+                        },
+                        (error) => showNotification(error.code === 1 ? "Location access denied." : "Could not get your location.", true)
+                    );
+                });
+                elements.formatToggle.addEventListener('click', () => {
+                    state.is24Hour = !state.is24Hour; localStorage.setItem('is24HourFormat', state.is24Hour);
+                    updateVisuals(); startClock();
+                });
+                elements.themeToggle.addEventListener('click', () => {
+                    state.theme = state.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('theme', state.theme);
+                    updateVisuals();
+                });
+                elements.colorwaySelector.addEventListener('change', (e) => {
+                    state.customColor = null; localStorage.removeItem('customColor');
+                    state.colorway = e.target.value; localStorage.setItem('colorway', state.colorway);
+                    const customOption = elements.colorwaySelector.querySelector('option[value="custom"]');
+                    if (customOption) customOption.remove();
+                    updateVisuals();
+                });
+                elements.colorPickerBtn.addEventListener('click', () => elements.colorPickerModal.classList.add('visible'));
+                elements.closeColorModalBtn.addEventListener('click', () => elements.colorPickerModal.classList.remove('visible'));
+                elements.timezoneSearch.addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    Array.from(elements.selector.options).forEach(option => {
+                        const isVisible = option.textContent.toLowerCase().includes(searchTerm);
+                        option.style.display = isVisible ? '' : 'none';
+                    });
+                });
             }
-
-            // --- Event Listeners ---
-            timezoneSelector.addEventListener('change', startClock);
-            locationButton.addEventListener('click', handleLocationClick);
-            formatToggle.addEventListener('click', handleFormatToggle);
-
-            // --- Initialization ---
-            populateTimezones();
-            updateFormatToggleVisual();
-            startClock();
+            init();
         });
     </script>
 </body>
