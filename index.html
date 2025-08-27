@@ -55,17 +55,13 @@
         .modal-overlay.visible .modal-content { transform: scale(1); }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen antialiased p-4">
+<body class="flex flex-col items-center justify-center min-h-screen antialiased p-4">
 
     <div class="w-full max-w-3xl mx-auto p-6 md:p-8 card rounded-2xl shadow-2xl border">
         <div class="text-center mb-6">
-            <div id="time-display" class="text-6xl md:text-8xl font-black tracking-tighter accent-text flex justify-center items-center" style="font-variant-numeric: tabular-nums;">
-                <span id="time-hours">00</span>
-                <span class="px-2 md:px-4"></span>
-                <span id="time-minutes">00</span>
-                <span class="px-2 md:px-4"></span>
-                <span id="time-seconds">00</span>
-            </div>
+            <h1 id="time-display" class="text-6xl md:text-8xl font-black tracking-tighter accent-text" style="font-variant-numeric: tabular-nums;">
+                00:00:00
+            </h1>
             <p id="ampm-display" class="text-2xl md:text-4xl font-bold subtext h-10"></p>
         </div>
         <div id="info-display" class="text-center mb-8 h-16 flex flex-col justify-center items-center transition-opacity duration-300 opacity-0">
@@ -103,6 +99,10 @@
         </div>
     </div>
 
+    <footer class="text-center text-xs subtext p-4">
+        made by choop
+    </footer>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const elements = {
@@ -114,10 +114,7 @@
                 secondaryClocks: document.getElementById('secondary-clocks'), colorwaySelector: document.getElementById('colorway-selector'),
                 colorPickerBtn: document.getElementById('color-picker-btn'), colorPickerModal: document.getElementById('color-picker-modal'),
                 closeColorModalBtn: document.getElementById('close-color-modal'), timezoneSearch: document.getElementById('timezone-search'),
-                colorPickerContainer: document.getElementById('color-picker-container'),
-                timeHours: document.getElementById('time-hours'),
-                timeMinutes: document.getElementById('time-minutes'),
-                timeSeconds: document.getElementById('time-seconds'),
+                colorPickerContainer: document.getElementById('color-picker-container')
             };
 
             const icons = {
@@ -206,9 +203,7 @@
                 const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !state.is24Hour, timeZone: timezone });
                 const parts = timeFormatter.formatToParts(date).reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
                 
-                elements.timeHours.textContent = parts.hour;
-                elements.timeMinutes.textContent = parts.minute;
-                elements.timeSeconds.textContent = parts.second;
+                elements.time.textContent = `${parts.hour}:${parts.minute}:${parts.second}`;
 
                 elements.ampm.textContent = state.is24Hour ? '' : (parts.dayPeriod || '').toUpperCase();
                 elements.date.textContent = new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: timezone }).format(date);
